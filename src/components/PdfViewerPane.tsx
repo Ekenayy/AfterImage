@@ -10,7 +10,10 @@ import {
   useRef,
   useState,
 } from "react";
-import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
+import type {
+  PDFDocumentLoadingTask,
+  PDFDocumentProxy,
+} from "pdfjs-dist/types/src/display/api";
 import { PdfViewerHandle } from "@/types";
 
 const SCALE = 1.5;
@@ -94,6 +97,7 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
     const selectedUrl = fileUrl;
 
     let cancelled = false;
+    let loadingTask: PDFDocumentLoadingTask | null = null;
     let pdfDoc: PDFDocumentProxy | null = null;
 
     async function renderPdf() {
@@ -104,9 +108,13 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-        const loadingTask = pdfjsLib.getDocument(selectedUrl);
-        pdfDoc = await loadingTask.promise;
-        if (cancelled) return;
+        loadingTask = pdfjsLib.getDocument(selectedUrl);
+        const loadedPdfDoc = await loadingTask.promise;
+        if (cancelled) {
+          void loadedPdfDoc.destroy();
+          return;
+        }
+        pdfDoc = loadedPdfDoc;
 
         setNumPages(pdfDoc.numPages);
         textLayerRefs.current.clear();
@@ -188,6 +196,11 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
     renderPdf();
     return () => {
       cancelled = true;
+      if (loadingTask) {
+        Promise.resolve(loadingTask.destroy()).catch(() => {
+          // Ignore cancellation race errors during effect cleanup.
+        });
+      }
       if (pdfDoc) {
         void pdfDoc.destroy();
       }
