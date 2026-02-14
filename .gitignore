@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# copied pdf.js worker (regenerate from node_modules)
+/public/pdf.worker.min.mjs
