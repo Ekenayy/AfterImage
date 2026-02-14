@@ -1,3 +1,8 @@
+export interface PageText {
+  page: number;
+  text: string;
+}
+
 export interface EvidenceItem {
   page: number;
   quote: string;

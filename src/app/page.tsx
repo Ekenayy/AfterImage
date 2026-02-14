@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { QaResponse, PdfViewerHandle } from "@/types";
+import { PageText, QaResponse, PdfViewerHandle } from "@/types";
 import Header from "@/components/Header";
 import PdfViewerPane from "@/components/PdfViewerPane";
 import QaPane from "@/components/QaPane";
@@ -34,6 +34,8 @@ export default function Home() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<QaResponse | null>(null);
+  const [pagesText, setPagesText] = useState<PageText[] | null>(null);
+  const [textExtractionError, setTextExtractionError] = useState(false);
   const pdfRef = useRef<PdfViewerHandle>(null);
 
   const handleAsk = useCallback(() => {
@@ -68,6 +70,22 @@ export default function Home() {
     pdfRef.current?.highlightQuote(page, quote);
   }, []);
 
+  const handlePagesTextExtracted = useCallback((pages: PageText[]) => {
+    setPagesText(pages);
+    setTextExtractionError(false);
+  }, []);
+
+  const handlePagesTextError = useCallback(() => {
+    setPagesText(null);
+    setTextExtractionError(true);
+  }, []);
+
+  const handleFileChange = useCallback(() => {
+    setPagesText([]);
+    setTextExtractionError(false);
+    setResponse(null);
+  }, []);
+
   return (
     <div className="flex h-screen flex-col">
       <Header
@@ -78,7 +96,12 @@ export default function Home() {
       <div className="flex flex-1 gap-4 overflow-hidden p-4">
         {/* Left: PDF Viewer (60%) */}
         <div className="w-3/5 min-w-0">
-          <PdfViewerPane ref={pdfRef} />
+          <PdfViewerPane
+            ref={pdfRef}
+            onPagesTextExtracted={handlePagesTextExtracted}
+            onPagesTextError={handlePagesTextError}
+            onFileChange={handleFileChange}
+          />
         </div>
 
         {/* Right: Q&A Panel (40%) */}
@@ -90,6 +113,8 @@ export default function Home() {
             loading={loading}
             response={response}
             onEvidenceClick={handleEvidenceClick}
+            pagesText={pagesText}
+            textExtractionError={textExtractionError}
           />
         </div>
       </div>
