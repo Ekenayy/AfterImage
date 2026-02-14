@@ -56,6 +56,9 @@ const PdfViewerPane = forwardRef<PdfViewerHandle, PdfViewerPaneProps>(
     const isPdf =
       file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) {
+      // Keep right pane state in sync with viewer error for invalid replacements.
+      onFileChangeRef.current?.();
+      onPagesTextErrorRef.current?.();
       setError("Please upload a PDF file.");
       return;
     }
