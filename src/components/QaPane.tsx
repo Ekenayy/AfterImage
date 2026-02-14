@@ -1,6 +1,6 @@
 "use client";
 
-import { QaResponse } from "@/types";
+import { PageText, QaResponse } from "@/types";
 import EvidenceCard from "./EvidenceCard";
 
 interface QaPaneProps {
@@ -10,6 +10,8 @@ interface QaPaneProps {
   loading: boolean;
   response: QaResponse | null;
   onEvidenceClick?: (page: number, quote: string) => void;
+  pagesText: PageText[] | null;
+  textExtractionError: boolean;
 }
 
 export default function QaPane({
@@ -19,9 +21,14 @@ export default function QaPane({
   loading,
   response,
   onEvidenceClick,
+  pagesText,
+  textExtractionError,
 }: QaPaneProps) {
+  const pagesTextReady = pagesText !== null && pagesText.length > 0;
+  const askDisabled = loading || !question.trim() || !pagesTextReady;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !loading && question.trim()) {
+    if (e.key === "Enter" && !askDisabled) {
       onAsk();
     }
   };
@@ -37,13 +44,13 @@ export default function QaPane({
             onChange={(e) => onQuestionChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask a question about the document…"
-            disabled={loading}
+            disabled={loading || !pagesTextReady}
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
           />
           <button
             type="button"
             onClick={onAsk}
-            disabled={loading || !question.trim()}
+            disabled={askDisabled}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             {loading ? "…" : "Ask"}
@@ -60,7 +67,26 @@ export default function QaPane({
           </div>
         )}
 
-        {!loading && !response && (
+        {!loading && !response && textExtractionError && (
+          <div className="flex items-center justify-center py-12 text-center text-sm text-red-500">
+            Failed to extract text from document. Please try a different PDF.
+          </div>
+        )}
+
+        {!loading && !response && !textExtractionError && pagesText === null && (
+          <div className="flex items-center justify-center py-12 text-center text-sm text-gray-400">
+            Upload a document to get started
+          </div>
+        )}
+
+        {!loading && !response && !textExtractionError && pagesText !== null && !pagesTextReady && (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+            <span className="ml-2 text-sm text-gray-500">Indexing document…</span>
+          </div>
+        )}
+
+        {!loading && !response && pagesTextReady && (
           <div className="flex items-center justify-center py-12 text-center text-sm text-gray-400">
             Ask a question to get started
           </div>

@@ -14,23 +14,37 @@ import type {
   PDFDocumentLoadingTask,
   PDFDocumentProxy,
 } from "pdfjs-dist/types/src/display/api";
-import { PdfViewerHandle } from "@/types";
+import { PageText, PdfViewerHandle } from "@/types";
 
 const SCALE = 1.5;
+const PDF_WORKER_SRC = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 /** Normalize whitespace so we can fuzzy-match quotes against text layer spans. */
 function normalizeWS(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
-const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
-  _props,
-  ref,
-) {
+interface PdfViewerPaneProps {
+  onPagesTextExtracted?: (pages: PageText[]) => void;
+  onPagesTextError?: () => void;
+  onFileChange?: () => void;
+}
+
+const PdfViewerPane = forwardRef<PdfViewerHandle, PdfViewerPaneProps>(
+  function PdfViewerPane({ onPagesTextExtracted, onPagesTextError, onFileChange }, ref) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const textLayerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const objectUrlRef = useRef<string | null>(null);
+  const onPagesTextExtractedRef = useRef(onPagesTextExtracted);
+  onPagesTextExtractedRef.current = onPagesTextExtracted;
+  const onPagesTextErrorRef = useRef(onPagesTextError);
+  onPagesTextErrorRef.current = onPagesTextError;
+  const onFileChangeRef = useRef(onFileChange);
+  onFileChangeRef.current = onFileChange;
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [dragActive, setDragActive] = useState(false);
@@ -58,6 +72,7 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
     setNumPages(0);
     setError(null);
     textLayerRefs.current.clear();
+    onFileChangeRef.current?.();
   }, []);
 
   const handleInputChange = useCallback(
@@ -106,7 +121,7 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
       try {
         // Dynamic import to avoid SSR issues — pdfjs-dist uses DOM globals
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
 
         loadingTask = pdfjsLib.getDocument(selectedUrl);
         const loadedPdfDoc = await loadingTask.promise;
@@ -121,6 +136,8 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
 
         // Wait one tick so React renders page wrappers for the selected file
         await new Promise((r) => setTimeout(r, 0));
+
+        const extractedPages: PageText[] = [];
 
         for (let i = 1; i <= pdfDoc.numPages; i++) {
           if (cancelled) return;
@@ -153,9 +170,14 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
           pageDiv.appendChild(textLayerDiv);
           textLayerRefs.current.set(i, textLayerDiv);
 
+          // Collect plain text for this page
+          const pageTextParts: string[] = [];
+
           // Render each text item as a positioned span
           for (const item of textContent.items) {
             if (!("str" in item)) continue;
+            pageTextParts.push(item.str);
+
             const span = document.createElement("span");
             span.textContent = item.str;
 
@@ -179,12 +201,22 @@ const PdfViewerPane = forwardRef<PdfViewerHandle>(function PdfViewerPane(
 
             textLayerDiv.appendChild(span);
           }
+
+          extractedPages.push({
+            page: i,
+            text: pageTextParts.join(" "),
+          });
+        }
+
+        if (!cancelled) {
+          onPagesTextExtractedRef.current?.(extractedPages);
         }
       } catch (err) {
         if (!cancelled) {
           console.error("PDF load error:", err);
           setError(err instanceof Error ? err.message : "Failed to load PDF");
           setNumPages(0);
+          onPagesTextErrorRef.current?.();
         }
       } finally {
         if (!cancelled) {
