@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { QaResponse } from "@/types";
+import { useState, useCallback, useRef } from "react";
+import { QaResponse, PdfViewerHandle } from "@/types";
 import Header from "@/components/Header";
 import PdfViewerPane from "@/components/PdfViewerPane";
 import QaPane from "@/components/QaPane";
@@ -34,11 +34,13 @@ export default function Home() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<QaResponse | null>(null);
+  const pdfRef = useRef<PdfViewerHandle>(null);
 
   const handleAsk = useCallback(() => {
     if (!question.trim() || loading) return;
     setLoading(true);
     setResponse(null);
+    pdfRef.current?.clearHighlights();
     // Mock delay to simulate API call
     setTimeout(() => {
       setResponse(MOCK_RESPONSE);
@@ -46,26 +48,24 @@ export default function Home() {
     }, 1000);
   }, [question, loading]);
 
-  const handleSelectExample = useCallback(
-    (q: string) => {
-      setQuestion(q);
-      setLoading(true);
-      setResponse(null);
-      setTimeout(() => {
-        setResponse(MOCK_RESPONSE);
-        setLoading(false);
-      }, 1000);
-    },
-    [],
-  );
-
-  const handleClearHighlights = useCallback(() => {
-    // No-op for now — will clear PDF highlights later
+  const handleSelectExample = useCallback((q: string) => {
+    setQuestion(q);
+    setLoading(true);
+    setResponse(null);
+    pdfRef.current?.clearHighlights();
+    setTimeout(() => {
+      setResponse(MOCK_RESPONSE);
+      setLoading(false);
+    }, 1000);
   }, []);
 
-  const handleEvidenceClick = useCallback((page: number, _quote: string) => {
-    // No-op for now — will navigate PDF to page and highlight quote
-    console.log(`Navigate to page ${page}`);
+  const handleClearHighlights = useCallback(() => {
+    pdfRef.current?.clearHighlights();
+  }, []);
+
+  const handleEvidenceClick = useCallback((page: number, quote: string) => {
+    pdfRef.current?.scrollToPage(page);
+    pdfRef.current?.highlightQuote(page, quote);
   }, []);
 
   return (
@@ -78,7 +78,7 @@ export default function Home() {
       <div className="flex flex-1 gap-4 overflow-hidden p-4">
         {/* Left: PDF Viewer (60%) */}
         <div className="w-3/5 min-w-0">
-          <PdfViewerPane />
+          <PdfViewerPane ref={pdfRef} />
         </div>
 
         {/* Right: Q&A Panel (40%) */}

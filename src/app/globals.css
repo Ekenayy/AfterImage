@@ -17,3 +17,32 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* PDF.js text layer -------------------------------------------------- */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+}
+
+.textLayer span,
+.textLayer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  transform-origin: 0% 0%;
+}
+
+.textLayer ::selection {
+  background: rgba(0, 0, 255, 0.25);
+}
+
+/* Highlight style for matched evidence quotes */
+.textLayer .pdf-highlight {
+  color: transparent;
+  background: rgba(239, 68, 68, 0.35);
+  border-radius: 2px;
+}
