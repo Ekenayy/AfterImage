@@ -12,6 +12,7 @@ interface QaPaneProps {
   onEvidenceClick?: (page: number, quote: string) => void;
   pagesText: PageText[] | null;
   textExtractionError: boolean;
+  errorMessage: string | null;
 }
 
 export default function QaPane({
@@ -23,6 +24,7 @@ export default function QaPane({
   onEvidenceClick,
   pagesText,
   textExtractionError,
+  errorMessage,
 }: QaPaneProps) {
   const pagesTextReady = pagesText !== null && pagesText.length > 0;
   const askDisabled = loading || !question.trim() || !pagesTextReady;
@@ -53,7 +55,14 @@ export default function QaPane({
             disabled={askDisabled}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            {loading ? "…" : "Ask"}
+            {loading ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+                Asking
+              </span>
+            ) : (
+              "Ask"
+            )}
           </button>
         </div>
       </div>
@@ -73,20 +82,26 @@ export default function QaPane({
           </div>
         )}
 
-        {!loading && !response && !textExtractionError && pagesText === null && (
+        {!loading && !response && !textExtractionError && errorMessage && (
+          <div className="flex items-center justify-center py-12 text-center text-sm text-red-500">
+            {errorMessage}
+          </div>
+        )}
+
+        {!loading && !response && !textExtractionError && !errorMessage && pagesText === null && (
           <div className="flex items-center justify-center py-12 text-center text-sm text-gray-400">
             Upload a document to get started
           </div>
         )}
 
-        {!loading && !response && !textExtractionError && pagesText !== null && !pagesTextReady && (
+        {!loading && !response && !textExtractionError && !errorMessage && pagesText !== null && !pagesTextReady && (
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
             <span className="ml-2 text-sm text-gray-500">Indexing document…</span>
           </div>
         )}
 
-        {!loading && !response && pagesTextReady && (
+        {!loading && !response && !textExtractionError && !errorMessage && pagesTextReady && (
           <div className="flex items-center justify-center py-12 text-center text-sm text-gray-400">
             Ask a question to get started
           </div>

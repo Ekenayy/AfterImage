@@ -119,13 +119,18 @@ INSTRUCTIONS:
    - "page": the page number the quote comes from
    - "quote": an EXACT substring (after collapsing whitespace) from that page's text. Max 180 characters.
    - "note": a short explanation of why this quote supports the answer.
-4. ONLY include "evidence_against" if the document contains conflicting or
-   contradictory evidence. Otherwise set it to an empty array [].
-5. If the document lacks information to fully answer the question, list what is
-   missing in "missing_info". Otherwise set it to [].
+4. Prefer evidence_for from the most direct section for the question
+   (for example: problem list, medications, signatures, or dated audit trail),
+   rather than less direct narrative text.
+5. ONLY populate "evidence_against" if the document contains statements that
+   directly contradict or materially weaken the conclusion.
+   If there is no such conflict, "evidence_against" MUST be an empty array [].
+6. If the question is unanswerable from the provided pages, explicitly say so in
+   "answer", explain briefly in "reasoning", and add concrete gaps to "missing_info".
+   If nothing is missing, set "missing_info" to [].
 ${strictBlock}
 
-Respond with ONLY a JSON object in this exact schema (no markdown, no extra text):
+Respond with ONLY a valid JSON object in this exact schema (no markdown, no extra text):
 {
   "answer": "string",
   "reasoning": "string",
