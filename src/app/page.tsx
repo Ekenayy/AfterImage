@@ -1,64 +1,59 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { askQuestion } from "@/lib/askQuestion";
 import { PageText, QaResponse, PdfViewerHandle } from "@/types";
 import Header from "@/components/Header";
 import PdfViewerPane from "@/components/PdfViewerPane";
 import QaPane from "@/components/QaPane";
 
-const MOCK_RESPONSE: QaResponse = {
-  answer:
-    "The document concludes that the proposed approach significantly improves performance over baseline methods.",
-  reasoning:
-    "Multiple sections reference comparative benchmarks and the conclusion explicitly states measurable gains.",
-  confidence: "high",
-  evidence_for: [
-    {
-      page: 3,
-      quote:
-        "Our method achieves a 15% improvement over the baseline across all evaluated metrics.",
-      note: "Direct performance comparison in Results section",
-    },
-    {
-      page: 5,
-      quote:
-        "The proposed framework consistently outperforms existing approaches in both accuracy and efficiency.",
-      note: "Summary of findings in Discussion",
-    },
-  ],
-  evidence_against: [],
-  missing_info: [],
-};
-
 export default function Home() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<QaResponse | null>(null);
+  const [askError, setAskError] = useState<string | null>(null);
   const [pagesText, setPagesText] = useState<PageText[] | null>(null);
   const [textExtractionError, setTextExtractionError] = useState(false);
   const pdfRef = useRef<PdfViewerHandle>(null);
 
-  const handleAsk = useCallback(() => {
-    if (!question.trim() || loading) return;
+  const handleAsk = useCallback(async () => {
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion || loading || !pagesText || pagesText.length === 0) {
+      return;
+    }
+
     setLoading(true);
     setResponse(null);
+    setAskError(null);
     pdfRef.current?.clearHighlights();
-    // Mock delay to simulate API call
-    setTimeout(() => {
-      setResponse(MOCK_RESPONSE);
+
+    try {
+      const nextResponse = await askQuestion(trimmedQuestion, pagesText);
+      setResponse(nextResponse);
+
+      const firstEvidence = nextResponse.evidence_for[0];
+      if (firstEvidence) {
+        requestAnimationFrame(() => {
+          pdfRef.current?.scrollToPage(firstEvidence.page);
+          pdfRef.current?.highlightQuote(firstEvidence.page, firstEvidence.quote);
+        });
+      }
+    } catch (err) {
+      setAskError(
+        err instanceof Error
+          ? err.message
+          : "Unable to analyze this document right now. Please try again.",
+      );
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, [question, loading]);
+    }
+  }, [question, loading, pagesText]);
 
   const handleSelectExample = useCallback((q: string) => {
     setQuestion(q);
-    setLoading(true);
     setResponse(null);
+    setAskError(null);
     pdfRef.current?.clearHighlights();
-    setTimeout(() => {
-      setResponse(MOCK_RESPONSE);
-      setLoading(false);
-    }, 1000);
   }, []);
 
   const handleClearHighlights = useCallback(() => {
@@ -73,17 +68,20 @@ export default function Home() {
   const handlePagesTextExtracted = useCallback((pages: PageText[]) => {
     setPagesText(pages);
     setTextExtractionError(false);
+    setAskError(null);
   }, []);
 
   const handlePagesTextError = useCallback(() => {
     setPagesText(null);
     setTextExtractionError(true);
+    setAskError(null);
   }, []);
 
   const handleFileChange = useCallback(() => {
     setPagesText([]);
     setTextExtractionError(false);
     setResponse(null);
+    setAskError(null);
   }, []);
 
   return (
@@ -115,6 +113,7 @@ export default function Home() {
             onEvidenceClick={handleEvidenceClick}
             pagesText={pagesText}
             textExtractionError={textExtractionError}
+            errorMessage={askError}
           />
         </div>
       </div>
