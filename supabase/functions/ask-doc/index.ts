@@ -377,7 +377,7 @@ async function callGemini(
       }),
     );
     if (rawText) {
-      previewPayload(`raw Gemini text (attempt ${attempt})`, rawText);
+      // previewPayload(`raw Gemini text (attempt ${attempt})`, rawText);
     }
 
     return { rawText, finishReason };
