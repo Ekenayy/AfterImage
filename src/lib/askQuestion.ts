@@ -22,18 +22,35 @@ function asFriendlyError(message: string): string {
 }
 
 function isQaResponse(value: unknown): value is QaResponse {
-  if (!value || typeof value !== "object") return false;
+  if (!value || typeof value !== "object") {
+    console.error("[askQuestion] response is not an object:", value);
+    return false;
+  }
   const candidate = value as Partial<QaResponse>;
-  return (
-    typeof candidate.answer === "string" &&
-    typeof candidate.reasoning === "string" &&
-    (candidate.confidence === "low" ||
+  const checks = {
+    answer: typeof candidate.answer === "string",
+    reasoning: typeof candidate.reasoning === "string",
+    confidence:
+      candidate.confidence === "low" ||
       candidate.confidence === "medium" ||
-      candidate.confidence === "high") &&
-    Array.isArray(candidate.evidence_for) &&
-    Array.isArray(candidate.evidence_against) &&
-    Array.isArray(candidate.missing_info)
-  );
+      candidate.confidence === "high",
+    evidence_for: Array.isArray(candidate.evidence_for),
+    evidence_against: Array.isArray(candidate.evidence_against),
+    missing_info: Array.isArray(candidate.missing_info),
+  };
+  const failed = Object.entries(checks).filter(([, ok]) => !ok);
+  if (failed.length > 0) {
+    console.error(
+      "[askQuestion] response validation failed on:",
+      failed.map(([k]) => k),
+      "| raw values:",
+      Object.fromEntries(
+        failed.map(([k]) => [k, (candidate as Record<string, unknown>)[k]]),
+      ),
+    );
+    return false;
+  }
+  return true;
 }
 
 export async function askQuestion(
@@ -42,6 +59,8 @@ export async function askQuestion(
   maxEvidence = 3,
 ): Promise<QaResponse> {
   const { url, anonKey } = readPublicConfig();
+
+  console.log("[askQuestion] sending request", { question, pageCount: pagesText.length, maxEvidence });
 
   let response: Response;
   try {
@@ -58,20 +77,26 @@ export async function askQuestion(
         maxEvidence,
       }),
     });
-  } catch {
+  } catch (fetchErr) {
+    console.error("[askQuestion] fetch failed:", fetchErr);
     throw new Error(DEFAULT_ERROR_MESSAGE);
   }
+
+  console.log("[askQuestion] response status:", response.status);
 
   let data: unknown = null;
   try {
     data = await response.json();
-  } catch {
-    // Ignore parse failures and fall through to a generic error below.
+  } catch (jsonErr) {
+    console.error("[askQuestion] failed to parse response JSON:", jsonErr);
   }
+
+  console.log("[askQuestion] parsed response data:", data);
 
   if (!response.ok) {
     if (data && typeof data === "object" && "error" in data) {
       const raw = (data as { error?: unknown }).error;
+      console.error("[askQuestion] server error:", raw);
       if (typeof raw === "string") {
         throw new Error(asFriendlyError(raw));
       }
