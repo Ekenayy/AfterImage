@@ -42,7 +42,7 @@ body {
 
 /* Highlight style for matched evidence quotes */
 .textLayer .pdf-highlight {
-  color: transparent;
-  background: rgba(239, 68, 68, 0.35);
-  border-radius: 2px;
+  color: rgba(17, 24, 39, 0.92);
+  background: rgba(220, 38, 38, 0.3);
+  border-radius: 3px;
 }

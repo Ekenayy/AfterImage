@@ -27,6 +27,15 @@ function normalizeWS(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/** Keep only meaningful quote tokens for best-effort evidence highlighting. */
+function extractSignificantTokens(quote: string): string[] {
+  const words = quote.match(/[a-z0-9]+/gi) ?? [];
+  const deduped = Array.from(
+    new Set(words.map((w) => w.toLowerCase()).filter((w) => w.length >= 4)),
+  );
+  return deduped.sort((a, b) => b.length - a.length).slice(0, 6);
+}
+
 interface PdfViewerPaneProps {
   onPagesTextExtracted?: (pages: PageText[]) => void;
   onPagesTextError?: () => void;
@@ -51,6 +60,15 @@ const PdfViewerPane = forwardRef<PdfViewerHandle, PdfViewerPaneProps>(
   const [numPages, setNumPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const clearAllHighlights = useCallback(() => {
+    for (const textLayerDiv of textLayerRefs.current.values()) {
+      const highlighted = textLayerDiv.querySelectorAll(".pdf-highlight");
+      for (const el of highlighted) {
+        el.classList.remove("pdf-highlight");
+      }
+    }
+  }, []);
 
   const handleFile = useCallback((file: File) => {
     const isPdf =
@@ -258,66 +276,70 @@ const PdfViewerPane = forwardRef<PdfViewerHandle, PdfViewerPaneProps>(
         if (!textLayerDiv) return;
 
         const normalizedQuote = normalizeWS(quote).toLowerCase();
-        const spans = textLayerDiv.querySelectorAll("span");
+        if (!normalizedQuote) return;
 
-        // Strategy 1: Try to find a single span that contains the quote
-        for (const span of spans) {
-          const spanText = normalizeWS(span.textContent || "").toLowerCase();
-          if (spanText.includes(normalizedQuote)) {
-            span.classList.add("pdf-highlight");
-            return;
+        clearAllHighlights();
+
+        const spans = Array.from(textLayerDiv.querySelectorAll("span"));
+        if (spans.length === 0) return;
+
+        const indexedSpans: Array<{
+          span: HTMLSpanElement;
+          text: string;
+          start: number;
+          end: number;
+        }> = [];
+
+        let combinedText = "";
+        for (const rawSpan of spans) {
+          if (!(rawSpan instanceof HTMLSpanElement)) continue;
+          const spanText = normalizeWS(rawSpan.textContent || "").toLowerCase();
+          if (!spanText) continue;
+
+          if (combinedText.length > 0) {
+            combinedText += " ";
           }
+          const start = combinedText.length;
+          combinedText += spanText;
+          const end = combinedText.length;
+
+          indexedSpans.push({
+            span: rawSpan,
+            text: spanText,
+            start,
+            end,
+          });
         }
 
-        // Strategy 2: Multi-span matching — concatenate consecutive spans
-        // and highlight the range that covers the quote
-        const spanArray = Array.from(spans);
-        for (let start = 0; start < spanArray.length; start++) {
-          let combined = "";
-          for (let end = start; end < spanArray.length; end++) {
-            const t = normalizeWS(spanArray[end].textContent || "");
-            combined = combined ? combined + " " + t : t;
-
-            if (combined.toLowerCase().includes(normalizedQuote)) {
-              for (let k = start; k <= end; k++) {
-                spanArray[k].classList.add("pdf-highlight");
-              }
-              return;
+        // Strategy 1: Best-effort exact lookup across contiguous spans.
+        const exactMatchStart = combinedText.indexOf(normalizedQuote);
+        if (exactMatchStart >= 0) {
+          const exactMatchEnd = exactMatchStart + normalizedQuote.length;
+          for (const entry of indexedSpans) {
+            if (entry.end > exactMatchStart && entry.start < exactMatchEnd) {
+              entry.span.classList.add("pdf-highlight");
             }
-
-            // Stop if combined text is already much longer than the quote
-            if (combined.length > normalizedQuote.length * 3) break;
           }
+          return;
         }
 
-        // Strategy 3: Token-based fallback — highlight spans that share
-        // significant tokens with the quote
-        const quoteTokens = normalizedQuote
-          .split(/\s+/)
-          .filter((t) => t.length > 3);
+        // Strategy 2: Token fallback for fragmented text layers.
+        const quoteTokens = extractSignificantTokens(normalizedQuote);
         if (quoteTokens.length === 0) return;
 
-        for (const span of spans) {
-          const spanText = normalizeWS(span.textContent || "").toLowerCase();
-          const matchCount = quoteTokens.filter((token) =>
-            spanText.includes(token),
-          ).length;
-          if (matchCount >= Math.min(2, quoteTokens.length)) {
-            span.classList.add("pdf-highlight");
+        for (const entry of indexedSpans) {
+          const hasToken = quoteTokens.some((token) => entry.text.includes(token));
+          if (hasToken) {
+            entry.span.classList.add("pdf-highlight");
           }
         }
       },
 
       clearHighlights() {
-        for (const textLayerDiv of textLayerRefs.current.values()) {
-          const highlighted = textLayerDiv.querySelectorAll(".pdf-highlight");
-          for (const el of highlighted) {
-            el.classList.remove("pdf-highlight");
-          }
-        }
+        clearAllHighlights();
       },
     }),
-    [],
+    [clearAllHighlights],
   );
 
   if (error) {
