@@ -268,6 +268,11 @@ function sanitizeJsonStrings(input: string): string {
   }
 
   if (inString) {
+    // If we ended on a dangling backslash, it would escape the auto-appended
+    // closing quote (`\"`) and keep the string unterminated. Drop it first.
+    if (escaped && out.endsWith("\\")) {
+      out = out.slice(0, -1);
+    }
     out += "\"";
   }
 
