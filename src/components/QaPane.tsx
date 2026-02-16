@@ -51,7 +51,7 @@ export default function QaPane({
           />
           <button
             type="button"
-            onClick={onAsk}
+            onClick={() => onAsk()}
             disabled={askDisabled}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
@@ -176,6 +176,13 @@ export default function QaPane({
                   ))}
                 </div>
               </section>
+            )}
+
+            {/* Verified highlights note */}
+            {(response.evidence_for.length > 0 || response.evidence_against.length > 0) && (
+              <p className="text-xs text-gray-400 italic">
+                Verified highlights only — quotes are checked against the document text.
+              </p>
             )}
 
             {/* Missing Info — only if non-empty */}
