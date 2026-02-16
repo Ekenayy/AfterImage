@@ -36,6 +36,8 @@ interface GeminiResponse {
   missing_info: string[];
 }
 
+type ReasoningLevel = "low" | "medium" | "high";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -348,6 +350,7 @@ async function callGemini(
   pages: PageInput[],
   maxEvidence: number,
   strict: boolean,
+  reasoningLevel: ReasoningLevel,
 ): Promise<GeminiResponse> {
   const prompt = buildPrompt(question, pages, maxEvidence, strict);
 
@@ -359,8 +362,13 @@ async function callGemini(
         maxOutputTokens: outputTokens,
         responseMimeType: "application/json",
         thinkingConfig: {
-          thinkingLevel: ThinkingLevel.LOW,
-        }
+          thinkingLevel:
+            reasoningLevel === "high"
+              ? ThinkingLevel.HIGH
+              : reasoningLevel === "low"
+                ? ThinkingLevel.LOW
+                : ThinkingLevel.MEDIUM,
+        },
       },
     });
 
@@ -445,7 +453,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { question, pages, maxEvidence = 3 } = body;
+    const { question, pages, maxEvidence = 3, reasoningLevel = "medium" } = body;
+    const normalizedReasoningLevel: ReasoningLevel =
+      reasoningLevel === "high" || reasoningLevel === "low" || reasoningLevel === "medium"
+        ? reasoningLevel
+        : "medium";
 
     // Validate input
     if (!question || typeof question !== "string") {
@@ -478,7 +490,7 @@ Deno.serve(async (req: Request) => {
     let needsRetry = false;
 
     try {
-      result = await callGemini(client, question, pages, maxEvidence, false);
+      result = await callGemini(client, question, pages, maxEvidence, false, normalizedReasoningLevel);
     } catch {
       needsRetry = true;
       result = undefined!;
@@ -504,7 +516,7 @@ Deno.serve(async (req: Request) => {
     // Retry with stricter prompt if needed
     if (needsRetry) {
       try {
-        result = await callGemini(client, question, pages, maxEvidence, true);
+        result = await callGemini(client, question, pages, maxEvidence, true, normalizedReasoningLevel);
       } catch (retryErr) {
         return jsonResponse(
           { error: `Gemini call failed after retry: ${retryErr}` },

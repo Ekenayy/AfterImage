@@ -6,6 +6,7 @@ const EXAMPLE_QUESTIONS = [
   "Who signed the discharge for the patient from the post-anaesthesia care unit on April 6?",
   "How do we know the patient has problems sleeping?",
   "What medications is the patient taking related to anxiety or sleep?",
+  "What role does Richard R Gilliam play in the patient's care?"
 ];
 
 interface HeaderProps {

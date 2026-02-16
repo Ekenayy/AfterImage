@@ -1,4 +1,4 @@
-import { PageText, QaResponse } from "@/types";
+import { AnswerModel, PageText, QaResponse, ReasoningLevel } from "@/types";
 
 const DEFAULT_ERROR_MESSAGE =
   "Unable to analyze this document right now. Please try again.";
@@ -57,14 +57,24 @@ export async function askQuestion(
   question: string,
   pagesText: PageText[],
   maxEvidence = 3,
+  model: AnswerModel = "gemini-3.0-flash",
+  reasoningLevel: ReasoningLevel = "medium",
 ): Promise<QaResponse> {
   const { url, anonKey } = readPublicConfig();
+  const functionName = model === "gemini-3.0-flash" ? "ask-doc" : "ask-openAI";
 
-  console.log("[askQuestion] sending request", { question, pageCount: pagesText.length, maxEvidence });
+  console.log("[askQuestion] sending request", {
+    question,
+    pageCount: pagesText.length,
+    maxEvidence,
+    model,
+    reasoningLevel,
+    functionName,
+  });
 
   let response: Response;
   try {
-    response = await fetch(`${url}/functions/v1/ask-doc`, {
+    response = await fetch(`${url}/functions/v1/${functionName}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -75,6 +85,7 @@ export async function askQuestion(
         question,
         pages: pagesText,
         maxEvidence,
+        reasoningLevel,
       }),
     });
   } catch (fetchErr) {
