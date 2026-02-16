@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { askQuestion } from "@/lib/askQuestion";
-import { PageText, QaResponse, PdfViewerHandle } from "@/types";
+import { AnswerModel, PageText, QaResponse, PdfViewerHandle, ReasoningLevel } from "@/types";
 import Header from "@/components/Header";
 import PdfViewerPane from "@/components/PdfViewerPane";
 import QaPane from "@/components/QaPane";
@@ -13,6 +13,8 @@ export default function Home() {
   const [response, setResponse] = useState<QaResponse | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
   const [pagesText, setPagesText] = useState<PageText[] | null>(null);
+  const [selectedModel, setSelectedModel] = useState<AnswerModel>("gemini-3.0-flash");
+  const [selectedReasoningLevel, setSelectedReasoningLevel] = useState<ReasoningLevel>("medium");
   const [textExtractionError, setTextExtractionError] = useState(false);
   const pdfRef = useRef<PdfViewerHandle>(null);
   const documentVersionRef = useRef(0);
@@ -30,7 +32,13 @@ export default function Home() {
     pdfRef.current?.clearHighlights();
 
     try {
-      const nextResponse = await askQuestion(trimmedQuestion, pagesText);
+      const nextResponse = await askQuestion(
+        trimmedQuestion,
+        pagesText,
+        3,
+        selectedModel,
+        selectedReasoningLevel,
+      );
       if (versionAtAskStart !== documentVersionRef.current) {
         console.debug("[Home] ignoring stale ask response after document change", {
           versionAtAskStart,
@@ -61,7 +69,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [question, loading, pagesText]);
+  }, [question, loading, pagesText, selectedModel, selectedReasoningLevel]);
 
   const handleSelectExample = useCallback((q: string) => {
     setQuestion(q);
@@ -72,6 +80,20 @@ export default function Home() {
   }, [handleAsk]);
 
   const handleClearHighlights = useCallback(() => {
+    pdfRef.current?.clearHighlights();
+  }, []);
+
+  const handleModelChange = useCallback((model: AnswerModel) => {
+    setSelectedModel(model);
+    setResponse(null);
+    setAskError(null);
+    pdfRef.current?.clearHighlights();
+  }, []);
+
+  const handleReasoningLevelChange = useCallback((level: ReasoningLevel) => {
+    setSelectedReasoningLevel(level);
+    setResponse(null);
+    setAskError(null);
     pdfRef.current?.clearHighlights();
   }, []);
 
@@ -134,6 +156,10 @@ export default function Home() {
             onQuestionChange={setQuestion}
             onAsk={handleAsk}
             loading={loading}
+            selectedModel={selectedModel}
+            onModelChange={handleModelChange}
+            selectedReasoningLevel={selectedReasoningLevel}
+            onReasoningLevelChange={handleReasoningLevelChange}
             response={response}
             onEvidenceClick={handleEvidenceClick}
             pagesText={pagesText}
