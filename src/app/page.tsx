@@ -17,8 +17,8 @@ export default function Home() {
   const pdfRef = useRef<PdfViewerHandle>(null);
   const documentVersionRef = useRef(0);
 
-  const handleAsk = useCallback(async () => {
-    const trimmedQuestion = question.trim();
+  const handleAsk = useCallback(async (questionOverride?: string) => {
+    const trimmedQuestion = (questionOverride ?? question).trim();
     if (!trimmedQuestion || loading || !pagesText || pagesText.length === 0) {
       return;
     }
@@ -68,7 +68,8 @@ export default function Home() {
     setResponse(null);
     setAskError(null);
     pdfRef.current?.clearHighlights();
-  }, []);
+    handleAsk(q);
+  }, [handleAsk]);
 
   const handleClearHighlights = useCallback(() => {
     pdfRef.current?.clearHighlights();

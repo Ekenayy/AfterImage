@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 
 const EXAMPLE_QUESTIONS = [
-  "What are the main findings of this document?",
-  "What methodology was used in this study?",
-  "Are there any limitations mentioned?",
+  "Who signed the discharge for the patient from the post-anaesthesia care unit on April 6?",
+  "How do we know the patient has problems sleeping?",
+  "What medications is the patient taking related to anxiety or sleep?",
 ];
 
 interface HeaderProps {
@@ -62,7 +62,7 @@ export default function Header({
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 z-10 mt-1 w-72 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+            <div className="absolute right-0 z-10 mt-1 w-96 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
               {EXAMPLE_QUESTIONS.map((q) => (
                 <button
                   key={q}

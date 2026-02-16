@@ -178,6 +178,13 @@ export default function QaPane({
               </section>
             )}
 
+            {/* Verified highlights note */}
+            {(response.evidence_for.length > 0 || response.evidence_against.length > 0) && (
+              <p className="text-xs text-gray-400 italic">
+                Verified highlights only — quotes are checked against the document text.
+              </p>
+            )}
+
             {/* Missing Info — only if non-empty */}
             {response.missing_info.length > 0 && (
               <section>
