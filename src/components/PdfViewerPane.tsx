@@ -457,6 +457,21 @@ const PdfViewerPane = forwardRef<PdfViewerHandle, PdfViewerPaneProps>(
       [buildHighlightForQuote, scrollToPageDom],
     );
 
+    const handlePagesTextError = useCallback(() => {
+      onPagesTextErrorRef.current?.();
+    }, []);
+
+    const handlePagesTextExtracted = useCallback((pages: PageText[]) => {
+      onPagesTextExtractedRef.current?.(pages);
+    }, []);
+
+    const handleScrollRefReady = useCallback(
+      (scrollTo: (highlight: ViewerHighlight) => void) => {
+        scrollToHighlightRef.current = scrollTo;
+      },
+      [],
+    );
+
     const handleFile = useCallback(
       (file: File) => {
         const isPdf =
@@ -683,7 +698,7 @@ const PdfViewerPane = forwardRef<PdfViewerHandle, PdfViewerPaneProps>(
               console.error("[PdfViewerPane] PDF load error", loadError);
               setError(loadError.message || "Failed to load PDF");
               setNumPages(0);
-              onPagesTextErrorRef.current?.();
+              handlePagesTextError();
             }}
           >
             {(pdfDocument) => (
@@ -691,11 +706,9 @@ const PdfViewerPane = forwardRef<PdfViewerHandle, PdfViewerPaneProps>(
                 containerRef={viewerContainerRef}
                 highlights={activeHighlights}
                 onNumPages={setNumPages}
-                onPagesTextError={() => onPagesTextErrorRef.current?.()}
-                onPagesTextExtracted={(pages) => onPagesTextExtractedRef.current?.(pages)}
-                onScrollRefReady={(scrollTo) => {
-                  scrollToHighlightRef.current = scrollTo;
-                }}
+                onPagesTextError={handlePagesTextError}
+                onPagesTextExtracted={handlePagesTextExtracted}
+                onScrollRefReady={handleScrollRefReady}
                 pdfDocument={pdfDocument}
               />
             )}
