@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "react-pdf-highlighter/dist/style.css";
 
 :root {
   --background: #f9fafb;
@@ -40,9 +41,14 @@ body {
   background: rgba(0, 0, 255, 0.25);
 }
 
-/* Highlight style for matched evidence quotes */
-.textLayer .pdf-highlight {
-  color: transparent;
-  background: rgba(239, 68, 68, 0.35);
-  border-radius: 2px;
+/* Evidence highlight overlay for react-pdf-highlighter */
+.evidence-highlight-part {
+  position: absolute;
+  border-radius: 3px;
+  background: rgba(220, 38, 38, 0.3);
+  pointer-events: none;
+}
+
+.evidence-highlight-scrolled {
+  box-shadow: 0 0 0 1px rgba(185, 28, 28, 0.45);
 }

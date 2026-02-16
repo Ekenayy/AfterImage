@@ -15,12 +15,14 @@ export default function Home() {
   const [pagesText, setPagesText] = useState<PageText[] | null>(null);
   const [textExtractionError, setTextExtractionError] = useState(false);
   const pdfRef = useRef<PdfViewerHandle>(null);
+  const documentVersionRef = useRef(0);
 
   const handleAsk = useCallback(async () => {
     const trimmedQuestion = question.trim();
     if (!trimmedQuestion || loading || !pagesText || pagesText.length === 0) {
       return;
     }
+    const versionAtAskStart = documentVersionRef.current;
 
     setLoading(true);
     setResponse(null);
@@ -29,10 +31,22 @@ export default function Home() {
 
     try {
       const nextResponse = await askQuestion(trimmedQuestion, pagesText);
+      if (versionAtAskStart !== documentVersionRef.current) {
+        console.debug("[Home] ignoring stale ask response after document change", {
+          versionAtAskStart,
+          currentVersion: documentVersionRef.current,
+        });
+        return;
+      }
       setResponse(nextResponse);
 
       const firstEvidence = nextResponse.evidence_for[0];
       if (firstEvidence) {
+        console.debug("[Home] auto-highlight first evidence", {
+          page: firstEvidence.page,
+          quotePreview: firstEvidence.quote.slice(0, 120),
+          quoteLength: firstEvidence.quote.length,
+        });
         requestAnimationFrame(() => {
           pdfRef.current?.scrollToPage(firstEvidence.page);
           pdfRef.current?.highlightQuote(firstEvidence.page, firstEvidence.quote);
@@ -61,6 +75,12 @@ export default function Home() {
   }, []);
 
   const handleEvidenceClick = useCallback((page: number, quote: string) => {
+    console.debug("[Home] evidence clicked", {
+      page,
+      quotePreview: quote.slice(0, 120),
+      quoteLength: quote.length,
+      hasPdfRef: Boolean(pdfRef.current),
+    });
     pdfRef.current?.scrollToPage(page);
     pdfRef.current?.highlightQuote(page, quote);
   }, []);
@@ -78,6 +98,10 @@ export default function Home() {
   }, []);
 
   const handleFileChange = useCallback(() => {
+    documentVersionRef.current += 1;
+    console.debug("[Home] file changed", {
+      documentVersion: documentVersionRef.current,
+    });
     setPagesText([]);
     setTextExtractionError(false);
     setResponse(null);
